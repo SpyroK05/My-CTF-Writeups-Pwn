@@ -1,5 +1,5 @@
 ##  **Kiểm tra thông tin cơ bản và cơ chế bảo vệ**
-![](images/Pasted image 20260915124817.png)
+![](images/checksec.png)
 ## **Phân tích**
 Giờ ta sẽ đưa file vào ghidra để phân tích, do file đã bị stripped nên sau một hồi khôi phục ta sẽ có cấu trúc hàm main cơ bản như sau:
 ```c 
@@ -341,7 +341,7 @@ void mail_read(uint param_1,undefined8 param_2,undefined8 param_3)
 Hàm `import_ar` và `mail_read_data` thiếu cơ chế kiểm tra giới hạn đầu vào (bounds checking), dẫn đến lỗ hổng SBO. Bằng cách tận dụng lỗi này cùng với giá trị con trỏ `stdout` leak từ hàm `read`, ta có đủ điều kiện để thực thi ROP chain và gọi `system('/bin/sh')`.
 ## **Ý tưởng khai thác**
 Đầu tiên ta sẽ khởi tạo một mail mới để con trỏ `fd` được gắn `stdout` và tận dụng hàm `read` để leak giá trị của `stdout`, chính là `_IO_2_1_stdout_` trong file `libc.so.6` nhờ đó ta có thể tính toán được base_libc. 
-![](images/Pasted image 20260915135054.png)
+![](images/leak.png)
 Sau đó ta gọi hàm `import_ar`, bằng việc kiểm soát kích thước của `Body`, ta sẽ gửi payload để gọi hàm `system('/bin/sh')` thông qua ROP chain cơ bản như sau: 
 `Payload = [Padding] + ret + pop_rdi + addr_bin_sh + addr_system`
 ```python
@@ -378,4 +378,4 @@ if __name__ == "__main__":
     main()
 
 ```
-![](images/Pasted image 20260915140340.png)
+![](images/Result.png)
