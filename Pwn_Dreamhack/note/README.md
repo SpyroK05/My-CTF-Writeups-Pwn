@@ -231,9 +231,9 @@ Tại phiên bản này cơ chế **Tcache** đang được sử dụng, nhưng 
 
 Với việc ta có thể cấp phát tối đa 10 vùng nhớ khi đó ta sẽ có thể đưa vùng nhớ vào **fastbin**. Chúng ta sẽ không đi quá sâu vào fastbin. Về cơ bản, chúng là cơ chế quản lý các heap chunk nhỏ đã được giải phóng thông qua danh sách liên kết đơn , hoạt động theo nguyên tắc LIFO. Quản lý thông qua con trỏ $fd$ với mỗi chunk sẽ trỏ tới chunk ở trước nó. Giá trị của $fd$ sẽ được mã hóa như sau, giả sử đang giải phóng một chunk ta có:
 
-$$
+```math
 \text{fd} =(\text{userdata\_chunk} \gg 12) \oplus \text{chunk\_head}
-$$
+```
 
 $\bullet$ $fd$ là giá trị mã hóa của chunk hiện tại được giải phóng
 
@@ -245,9 +245,9 @@ Cần lưu ý rằng, các chunk có cùng kích thước được quản lý tr
 
 Và khi được cấp phát, nó cấp cho chúng ta địa chỉ chunk ở đầu danh sách và cập nhật địa chỉ của chunk tiếp theo sẽ được cấp phát bằng công thức:
 
-$$
+```math
 \text{chunk\_head\_next} = (\text{userdata\_chunk\_head} \gg 12) \oplus \text{fd}
-$$
+```
 
 $\bullet$ $chunk\_head\_next$ là địa chỉ của chunk kế tiếp
 
@@ -295,9 +295,9 @@ print(f"header_chunk = {hex(leak2^leak)}")
 
 Nhắc lại công thức: 
 
-$$
+```math
 \text{fd} = (\text{userdata\_chunk} \gg 12) \oplus \text{chunk\_head}
-$$
+```
 
 $\bullet$ $fd$ là giá trị mã hóa của chunk hiện tại được giải phóng
 
@@ -307,22 +307,22 @@ $\bullet$ $chunk\_head$ là địa chỉ header của chunk được giải phó
 
 Nên ta suy ra: 
 
-$$
+```math
 \text{chunk\_head} = (\text{userdata\_chunk} \gg 12) \oplus \text{fd}
-$$
+```
 
 Và bất ngờ chính giá trị mà ta leak lúc đầu là ${userdata\_chunk} >> 12$ bởi vì:
 
-$$
+```math
 \text{fd\_first(leak)} = (\text{userdata\_chunk} \gg 12) \oplus \text{Null}
-$$
+```
 
 Do lúc chưa có vùng nào trong fastbin nên giá trị đầu của nó là Null, giờ ta có thể suy ra địa chỉ $chunk\_head$ của vùng nhớ đầu tiên đưa vào fastbin là:
 
-$$
+```math
 \text{chunk\_head} = fd\_first(leak) \oplus \text{fd(leak2)}
 \\ = 0xdcf2adf \oplus 0xdcff = 0xdcff620
-$$
+```
 
 Như ảnh trên mà chúng ta đã check hoàn toàn trùng khớp:
 
@@ -330,9 +330,9 @@ Như ảnh trên mà chúng ta đã check hoàn toàn trùng khớp:
 
 Lúc này, fastbin tại kích thước 0x70 đang trỏ tới địa chỉ header của chunk vừa được chúng ta giải phóng, khi mà chúng ta cấp phát tiếp một chunk có cùng kích thước thì nó sẽ cấp phát địa chỉ header + 0x10 tức vùng userdata và cập nhật vị trí lưu tiếp theo thông qua công thức mà chúng ta đã nhắc lúc nãy:
 
-$$
+```math
 \text{chunk\_head\_next} = (\text{userdata\_chunk\_head} \gg 12) \oplus \text{fd}
-$$
+```
 
 $\bullet$ $chunk\_head\_next$ là địa chỉ của chunk kế tiếp
 
@@ -344,12 +344,12 @@ Với việc đã biết $userdata\_chunk\_head$ và ta có thể ghi đè fd hi
 
 Khi mà fastbin được cấp phát một chunk nó sẽ check xem size cấp phát của chunk hiện tại có bằng kích thước yêu cầu hay không. Nên chúng ta phải hướng tới một vùng nhớ nào có điều kiện thỏa mãn, giả sử như a là địa chỉ mà chúng ta muốn được cấp thì nó phải thỏa mãn:
 
-$$
+```math
 \text{0x70}
 =
 (a - 0x80)\ \
 \&\ \sim \text{0x7}
-$$
+```
 
 0x70 là kích thước mà ta đầu chúng ta muốn đưa vào fastbin, tại sao ở trên tôi toàn cấp phát 0x60 mà giờ là 0x70? Vì 0x60 là kích thước dữ liệu của phần userdata, cộng thêm phần prev_size và size là thành 0x70. Tới đây ý tưởng của tôi là muốn địa chỉ ghi đè sắp tới là của mảng buf, tại sao thì tí nữa chúng ta sẽ trình bày. Nhớ thao tác 
 
