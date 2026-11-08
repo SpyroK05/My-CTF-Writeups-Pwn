@@ -232,10 +232,7 @@ Tại phiên bản này cơ chế **Tcache** đang được sử dụng, nhưng 
 Với việc ta có thể cấp phát tối đa 10 vùng nhớ khi đó ta sẽ có thể đưa vùng nhớ vào **fastbin**. Chúng ta sẽ không đi quá sâu vào fastbin. Về cơ bản, chúng là cơ chế quản lý các heap chunk nhỏ đã được giải phóng thông qua danh sách liên kết đơn , hoạt động theo nguyên tắc LIFO. Quản lý thông qua con trỏ $fd$ với mỗi chunk sẽ trỏ tới chunk ở trước nó. Giá trị của $fd$ sẽ được mã hóa như sau, giả sử đang giải phóng một chunk ta có:
 
 $$
-\text{fd}
-=
-(\text{userdata\_chunk} \gg 12)
-\oplus \text{chunk\_head}
+\text{fd} =(\text{userdata\_chunk} \gg 12) \oplus \text{chunk\_head}
 $$
 
 $\bullet$ $fd$ là giá trị mã hóa của chunk hiện tại được giải phóng
@@ -249,11 +246,9 @@ Cần lưu ý rằng, các chunk có cùng kích thước được quản lý tr
 Và khi được cấp phát, nó cấp cho chúng ta địa chỉ chunk ở đầu danh sách và cập nhật địa chỉ của chunk tiếp theo sẽ được cấp phát bằng công thức:
 
 $$
-\text{chunk\_head\_next}
-=
-(\text{userdata\_chunk\_head} \gg 12)
-\oplus \text{fd}
+\text{chunk\_head\_next} = (\text{userdata\_chunk\_head} \gg 12) \oplus \text{fd}
 $$
+
 $\bullet$ $chunk\_head\_next$ là địa chỉ của chunk kế tiếp
 
 $\bullet$ $userdata\_chunk\_head$ là địa chỉ vùng userdata của chunk ở đầu danh sách hiện tại
@@ -301,10 +296,7 @@ print(f"header_chunk = {hex(leak2^leak)}")
 Nhắc lại công thức: 
 
 $$
-\text{fd}
-=
-(\text{userdata\_chunk} \gg 12)
-\oplus \text{chunk\_head}
+\text{fd} = (\text{userdata\_chunk} \gg 12) \oplus \text{chunk\_head}
 $$
 
 $\bullet$ $fd$ là giá trị mã hóa của chunk hiện tại được giải phóng
@@ -316,30 +308,20 @@ $\bullet$ $chunk\_head$ là địa chỉ header của chunk được giải phó
 Nên ta suy ra: 
 
 $$
-\text{chunk\_head}
-=
-(\text{userdata\_chunk} \gg 12)
-\oplus \text{fd}
+\text{chunk\_head} = (\text{userdata\_chunk} \gg 12) \oplus \text{fd}
 $$
 
 Và bất ngờ chính giá trị mà ta leak lúc đầu là ${userdata\_chunk} >> 12$ bởi vì:
 
 $$
-\text{fd\_first(leak)}
-=
-(\text{userdata\_chunk} \gg 12)
-\oplus \text{Null}
+\text{fd\_first(leak)} = (\text{userdata\_chunk} \gg 12) \oplus \text{Null}
 $$
 
 Do lúc chưa có vùng nào trong fastbin nên giá trị đầu của nó là Null, giờ ta có thể suy ra địa chỉ $chunk\_head$ của vùng nhớ đầu tiên đưa vào fastbin là:
 
 $$
-\text{chunk\_head}
-=
-fd\_first(leak)
-\oplus \text{fd(leak2)}
-\\
-=0xdcf2adf \oplus 0xdcff = 0xdcff620
+\text{chunk\_head} = fd\_first(leak) \oplus \text{fd(leak2)}
+\\ = 0xdcf2adf \oplus 0xdcff = 0xdcff620
 $$
 
 Như ảnh trên mà chúng ta đã check hoàn toàn trùng khớp:
@@ -349,10 +331,7 @@ Như ảnh trên mà chúng ta đã check hoàn toàn trùng khớp:
 Lúc này, fastbin tại kích thước 0x70 đang trỏ tới địa chỉ header của chunk vừa được chúng ta giải phóng, khi mà chúng ta cấp phát tiếp một chunk có cùng kích thước thì nó sẽ cấp phát địa chỉ header + 0x10 tức vùng userdata và cập nhật vị trí lưu tiếp theo thông qua công thức mà chúng ta đã nhắc lúc nãy:
 
 $$
-\text{chunk\_head\_next}
-=
-(\text{userdata\_chunk\_head} \gg 12)
-\oplus \text{fd}
+\text{chunk\_head\_next} = (\text{userdata\_chunk\_head} \gg 12) \oplus \text{fd}
 $$
 
 $\bullet$ $chunk\_head\_next$ là địa chỉ của chunk kế tiếp
