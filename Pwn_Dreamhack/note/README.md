@@ -230,12 +230,14 @@ Vì cơ chế **PIE** đã tắt nên ta sẽ biết được địa chỉ của
 Tại phiên bản này cơ chế **Tcache** đang được sử dụng, nhưng mà chương trình xài hàm **calloc()** nên khi được cấp phát nó sẽ không tái sử dụng lại vùng nhớ được giải phóng được lưu trong **Tcache** nhưng khi giải phóng thì vùng nhớ đó vẫn sẽ được nó. Và thêm một điều nữa **Tcache** với mỗi size chỉ lưu tối đa 7 vùng nhớ đã được giải phóng, sau đó khi giải phóng một vùng nhớ cùng size thì nó sẽ vào **fastbin**
 
 Với việc ta có thể cấp phát tối đa 10 vùng nhớ khi đó ta sẽ có thể đưa vùng nhớ vào **fastbin**. Chúng ta sẽ không đi quá sâu vào fastbin. Về cơ bản, chúng là cơ chế quản lý các heap chunk nhỏ đã được giải phóng thông qua danh sách liên kết đơn , hoạt động theo nguyên tắc LIFO. Quản lý thông qua con trỏ $fd$ với mỗi chunk sẽ trỏ tới chunk ở trước nó. Giá trị của $fd$ sẽ được mã hóa như sau, giả sử đang giải phóng một chunk ta có:
+
 $$
 \text{fd}
 =
 (\text{userdata\_chunk} \gg 12)
 \oplus \text{chunk\_head}
 $$
+
 $\bullet$ $fd$ là giá trị mã hóa của chunk hiện tại được giải phóng
 
 $\bullet$ $userdata\_chunk$ là địa chỉ vùng userdata của chunk hiện tại được giải phóng
@@ -278,8 +280,11 @@ read(8)
 leak = u64(p.recvuntil(b'\n',drop = True).ljust(8,b'\x00'))
 print("leak_fd = {hex(leak)}")
 ```
+
 ![alt text](images/image-11.png)
+
 ![alt text](images/image-12.png)
+
 Vùng nhớ vừa được giải phóng là 0xdcff630, ta khi lấy 0xdcff630 >> 12 hoàn toàn bằng 0xdcff như  ta đã leak. Giờ ta cần biết của vùng nhớ heap nên ta sẽ tạo và free một chunk nữa để biết fd tiếp theo. 
 ```py
 create(8,0x60,"a")
@@ -301,6 +306,7 @@ $$
 (\text{userdata\_chunk} \gg 12)
 \oplus \text{chunk\_head}
 $$
+
 $\bullet$ $fd$ là giá trị mã hóa của chunk hiện tại được giải phóng
 
 $\bullet$ $userdata\_chunk$ là địa chỉ vùng userdata của chunk hiện tại được giải phóng
@@ -308,12 +314,14 @@ $\bullet$ $userdata\_chunk$ là địa chỉ vùng userdata của chunk hiện t
 $\bullet$ $chunk\_head$ là địa chỉ header của chunk được giải phóng trước đó
 
 Nên ta suy ra: 
+
 $$
 \text{chunk\_head}
 =
 (\text{userdata\_chunk} \gg 12)
 \oplus \text{fd}
 $$
+
 Và bất ngờ chính giá trị mà ta leak lúc đầu là ${userdata\_chunk} >> 12$ bởi vì:
 
 $$
@@ -322,6 +330,7 @@ $$
 (\text{userdata\_chunk} \gg 12)
 \oplus \text{Null}
 $$
+
 Do lúc chưa có vùng nào trong fastbin nên giá trị đầu của nó là Null, giờ ta có thể suy ra địa chỉ $chunk\_head$ của vùng nhớ đầu tiên đưa vào fastbin là:
 
 $$
@@ -332,8 +341,11 @@ fd\_first(leak)
 \\
 =0xdcf2adf \oplus 0xdcff = 0xdcff620
 $$
+
 Như ảnh trên mà chúng ta đã check hoàn toàn trùng khớp:
+
 ![alt text](images/image-12.png)
+
 Lúc này, fastbin tại kích thước 0x70 đang trỏ tới địa chỉ header của chunk vừa được chúng ta giải phóng, khi mà chúng ta cấp phát tiếp một chunk có cùng kích thước thì nó sẽ cấp phát địa chỉ header + 0x10 tức vùng userdata và cập nhật vị trí lưu tiếp theo thông qua công thức mà chúng ta đã nhắc lúc nãy:
 
 $$
@@ -342,6 +354,7 @@ $$
 (\text{userdata\_chunk\_head} \gg 12)
 \oplus \text{fd}
 $$
+
 $\bullet$ $chunk\_head\_next$ là địa chỉ của chunk kế tiếp
 
 $\bullet$ $userdata\_chunk\_head$ là địa chỉ vùng userdata của chunk ở đầu danh sách hiện tại
@@ -351,49 +364,71 @@ $\bullet$ $fd$ là giá trị của vùng userdata của chunk đầu danh sách
 Với việc đã biết $userdata\_chunk\_head$ và ta có thể ghi đè fd hiện tại, ta có thể làm cho thao tác cấp phát tiếp theo trả về địa chỉ mà ta mong muốn, nhưng đó nên là địa chỉ nào?
 
 Khi mà fastbin được cấp phát một chunk nó sẽ check xem size cấp phát của chunk hiện tại có bằng kích thước yêu cầu hay không. Nên chúng ta phải hướng tới một vùng nhớ nào có điều kiện thỏa mãn, giả sử như a là địa chỉ mà chúng ta muốn được cấp thì nó phải thỏa mãn:
- $$
+
+$$
 \text{0x70}
 =
 (a - 0x80)\ \
 \&\ \sim \text{0x7}
 $$
+
 0x70 là kích thước mà ta đầu chúng ta muốn đưa vào fastbin, tại sao ở trên tôi toàn cấp phát 0x60 mà giờ là 0x70? Vì 0x60 là kích thước dữ liệu của phần userdata, cộng thêm phần prev_size và size là thành 0x70. Tới đây ý tưởng của tôi là muốn địa chỉ ghi đè sắp tới là của mảng buf, tại sao thì tí nữa chúng ta sẽ trình bày. Nhớ thao tác 
+
 ```py
 create(0,0x70,"a")
 ```
+
 lúc đầu mà tôi thực hiện không, đó là dành cho trường hợp này,
 khi đó buf[0].Size = 0x70 phù hợp với điều kiện của chúng ta, giờ hãy xem địa chỉ của buf[0] lưu ở đâu.
+
 ![alt text](images/image-14.png)
+
 Đây là nó lưu ở 0x4040a8, với trường size = 0x70 và  _ptr = 0xdcff2a0, khi check ta thấy thì nó có size_chunk = 0x70 và userdata lưu 0x61 tức là "a" mà ta đã khởi tạo.
 
 Xem nó như một chunk, để khớp phần size_chunk thì địa chỉ sẽ là 0x4040a0 ta sẽ tính fd hiện tại thông qua công thức lúc nãy rồi ghi đè vào fd hiện tại
+
 ```py
 update_int(9,p64((leak >> 12) ^ 0x4040a0))
 ```
+
 Khởi tạo chunk mới cùng kích thước để đầu fastbin là địa chỉ mà chúng ta mong muốn
+
 ```py
 create(8,0x60,"a")
 ```
+
 Nếu giờ bây giờ ta cấp phát chunk mới thì nó sẽ đưa địa chỉ mà chúng ta đã phân tích. Khi mà tạo xong thì sẽ đến phần ghi dữ liệu, chúng ta sẽ lợi dụng điều đó để ghi đè buf[1]._ptr thành địa chỉ của (GOT entry) tương ứng với hàm free.
 
 ![alt text](images/image-15.png)
 
 Đó là 0x404018, và ta có thể ghi đè lại trường size kích thước tùy ý nhưng trên thực tế ta chỉ cần lớn hơn 0x08 là được.
+
 ```py
 create_int(9,0x60,b'a'*8+p64(0x70)+p64(0x404018))
 ```
+
 Ta xem kết quả sau thao tác:
+
 ![alt text](images/image-16.png)
+
 Địa chỉ vùng nhớ buf[1] là 0x4040b8 đã chứa size là 0x70 và _ptr = 0x404018 như chúng ta thao tác ở trên. Bây giờ ta sẽ ghi địa chỉ hàm **getshell()** vào buf[1]._ptr, tìm địa chỉ **getshell()** thông qua hàm execve tại section .text
+
 ![alt text](images/image-17.png)
+
 ![alt text](images/image-18.png)
+
 Hàm **getshell()** có địa chỉ tại 0x401256, ta sẽ ghi nó vào GOT entry tương ứng với hàm free
+
 ```py
 update_int(1,p64(0x401256))
 ```
+
 Sau đó kiểm tra:
+
 ![alt text](images/image-19.png)
+
 Đã thành công, giờ ta gọi hàm free để thực thi **getshell()**
+
 ```py
 delete(1)
 ```
@@ -401,4 +436,5 @@ delete(1)
 ![alt text](images/image-20.png)
 
 Áp dụng ta sẽ có kết quả như sau:
+
 ![alt text](images/image-2.png)
